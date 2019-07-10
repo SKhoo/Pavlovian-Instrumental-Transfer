@@ -1,0 +1,1403 @@
+\-------------------------------------------------------------------------
+\ G3 Pavlovian Conditioning
+\ Version: 1.1
+\ Created by Shaun Khoo (22 June 2019) based on S1 Operant Self-Administration
+\ >('.')<
+\ http://orcid.org/0000-0002-0972-3788
+\ License: MIT
+\-------------------------------------------------------------------------
+
+\CONTROL CONSTANTS
+^SessionLength = 44	\Session length in minutes
+^NumberOfTrials = 4	\Number of Trials for per CS
+^NumberOfTimebins = 44	\Number of timebins for standard timekeeping
+^TrialTimebinSize = 10	\Size of trial timebins in seconds
+^CSIdentity = 1		\1 = CS+ is the tone
+			\2 = CS+ is the clicker
+^CSduration = 120	\CS duration in seconds
+^USDeliveryVI = -20	\Set to -20 to keep default uniform distribution (11-30)
+			\Set to a positive number to initialise the VI using the
+			\Fleshler and Hoffman (1962; doi: 10.1901/jeab.1962.5-529) distribution
+^PelletsPerTrial = 4	\Number of pellets delivered each trial
+^ReinforcerType = 1	\1 = reward delivered via fluid dispenser
+			\2 = reward delivered pellet dispenser
+^ClickerFreq = 10	\Frequency of clicker in Hz
+^Version = 120		\Program version
+
+\INPUTS
+^LeftLever = 1
+^RightLever = 3
+^Magazine = 4
+^ActivityOne = 5
+^ActivityTwo = 2
+^ActivityThree = 7
+^ActivityFour = 8
+
+\OUTPUTS
+^LeftOut = 1
+^RightOut = 10
+^LiquidDispenser = 2
+
+^Pellet = 3
+^LeftLight = 4
+^RightLight = 5
+^Tone = 6
+^Houselight = 7
+^Pump = 8
+^Fan = 9
+^Clicker = 12
+
+\K-Pulses
+\K1-10 reserved for boxes
+^NewBoxLoaded = 11
+^Acceptance = 12
+^Reacquire = 13
+^ReadyITI = 14
+^Collected = 15
+^GOGOGO = 16
+
+\Z-PULSES
+^NoFriends = 1
+^Mastered = 2
+^Reward = 3
+^PreCSplus = 4
+^CSplus = 5
+^PostCSplus = 6
+^PreCSminus = 7
+^CSminus = 8
+^PostCSminus = 9
+^PostPlusPreMinus = 10
+^PostPlusPrePlus = 11
+^PostMinusPrePlus = 12
+^PostMinusPreMinus = 13
+^EndPostPlus = 14
+^EndPostMinus = 15
+^LastPlus = 16
+^LastMinus = 17
+^Shutdown = 18
+
+\VARIABLES
+\VARIABLES - DATA - Session Totals
+DIM A = 50
+\Total Magazine Entries = A(0)
+\Inter-Trial Interval Magazine Entries = A(1)
+\Pre-CS+ Magazine Entries = A(2)
+\CS+ Magazine Entries = A(3)
+\Post-CS+ Magazine Entries = A(4)
+\Pre-CS- Magazine Entries = A(5)
+\CS- Magazine Entries = A(6)
+\Post-CS- Magazine Entries = A(7)
+\CS+ Trials Presented = A(8)
+\CS- Trials Presented = A(9)
+\Reinforcers Delivered = A(10)
+\Total Activity = A(11)
+\ITI Activity = A(12)
+\Pre-CS+ Activity = A(13)
+\CS+ Activity = A(14)
+\Post-CS+ Activity = A(15)
+\Pre-CS- Activity = A(16)
+\CS- Activity = A(17)
+\Post-CS- Activity = A(18)
+\Total ActivityOne = A(19)
+\ITI ActivityOne = A(20)
+\Pre-CS+ ActivityOne = A(21)
+\CS+ ActivityOne = A(22)
+\Post-CS+ ActivityOne = A(23)
+\Pre-CS- ActivityOne = A(24)
+\CS- ActivityOne = A(25)
+\Post-CS- ActivityOne = A(26)
+\Total ActivityTwo = A(27)
+\ITI ActivityTwo = A(28)
+\Pre-CS+ ActivityTwo = A(29)
+\CS+ ActivityTwo = A(30)
+\Post-CS+ ActivityTwo = A(31)
+\Pre-CS- ActivityTwo = A(32)
+\CS- ActivityTwo = A(33)
+\Post-CS- ActivityTwo = A(34)
+\Total ActivityThree = A(35)
+\ITI ActivityThree = A(36)
+\Pre-CS+ ActivityThree = A(37)
+\CS+ ActivityThree = A(38)
+\Post-CS+ ActivityThree = A(39)
+\Pre-CS- ActivityThree = A(40)
+\CS- ActivityThree = A(41)
+\Post-CS- ActivityThree = A(42)
+\Total ActivityFour = A(43)
+\ITI ActivityFour = A(44)
+\Pre-CS+ ActivityFour = A(45)
+\CS+ ActivityFour = A(46)
+\Post-CS+ ActivityFour = A(47)
+\Pre-CS- ActivityFour = A(48)
+\CS- ActivityFour = A(49)
+\Post-CS- ActivityFour = A(50)
+
+
+\VARIABLES - DATA - Timecourse Arrays
+DIM B = 100		\Cue presentations,	subscript S/X(10)
+DIM C = 50000		\Magazine Entries,	subscript S/X(11)
+DIM D = 50000		\ActivityOne,		subscript S/X(12)
+DIM E = 50000		\ActivityTwo,		subscript S/X(13)
+DIM F = 50000		\ActivityThree,		subscript S/X(14)
+DIM G = 50000		\ActivityFour,		subscript S/X(15)
+
+\VARIABLES - DATA - Timebin Arrays
+DIM H = 10000		\Magazine Entries,	subscript T
+DIM I = 50000		\Total Activity,	subscript T
+
+\VARIABLES - DATA - Trial bin Arrays
+DIM J = 1000		\CS+ Trial Bins,	subscript S/X(16)
+DIM K = 100		\CS+ Latencies,		subscript S/X(17)
+DIM L = 1000		\CS+ Activity,		subscript S/X(16)
+DIM M = 1000		\CS- Trial Bins,	subscript S/X(18)
+DIM N = 100		\CS- Latencies,		subscript S/X(19)
+DIM O = 1000		\CS- Activity,		subscript S/X(18)
+
+\VARIABLES - CONTROL - Cue Presentation
+\Cue Type Selection
+LIST P = 1, 1, 1, 2, 2, 2
+
+\ITI Selection
+\These times are shortened from Derman and Ferrario (2018; doi: 10.1016/j.neuropharm.2017.12.039)
+\The mean is 180 s, range  is 120 - 240 s and it sums to 28 minutes.'
+LIST Q = 130, 240, 220, 120, 200, 150, 180, 230, 210
+
+\Intervals for US delivery, with a mean of 20 s and a range from 11 - 30 s following a uniform distribution
+LIST R = 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30
+
+\ITIs to be delivered in order
+\LIST U, subscript Y
+LIST U = 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+\Cue identities to be delivered in order
+\LIST V, subscript W
+LIST V = 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+\VARIABLES - CONTROL - WORKING VARIABLES
+DIM X = 29
+\X(0) = Session Clock
+\X(1) = Centisecond Clock
+\X(2) = Timebin Clock
+\X(3) = CS+ Trial Clock (current trial)
+\X(4) = CS- Trial Clock (current trial)
+\X(5) = CS Trialbin Clock
+\X(6) = Current ITI
+\X(7) = Current Trial Cue Type
+\X(8) = Pellets Delivered in Current Trial
+\X(9) = Master Box Calling Iterations and Pellet interval
+\X(10) = Subscript for B array
+\X(11) = Subscript for C array
+\X(12) = Subscript for D array
+\X(13) = Subscript for E array
+\X(14) = Subscript for F array
+\X(15) = Subscript for G array
+\X(16) = Subscript for J and L arrays
+\X(17) = Subscript for K array
+\X(18) = Subscript for M and O arrays
+\X(19) = Subscript for N array
+\X(20) = Counter Cue 1
+\X(21) = Counter Cue 2
+\X(22) = Array dumper
+\X(23) = Counter for previous trial
+\X(24) = Retrial max
+\X(25) = CS+ trials delivered
+\X(26) = CS- trials delivered
+\X(27) = Last Beam Break Identity
+\X(28) = Is PreCS On?
+\X(29) = Clicker On\Off time
+
+
+\VARIABLES - CONTROL - SESSION PARAMETERS
+DIM Z = 11
+var_alias Session Length (min) = Z(0)
+var_alias Number of Trials = Z(1)
+var_alias Number of Timebins = Z(2)
+var_alias Trial Timebin Size (s) = Z(3)
+var_alias CS+ Identity (1Tone 2Click) = Z(4)
+var_alias CS duration (s) = Z(5)
+var_alias US Delivery VI = Z(6)
+var_alias Pellets per Trial = Z(7)
+var_alias Reinforcer Type = Z(8)
+var_alias Clicker Frequency (Hz) = Z(9)
+var_alias Master Box = Z(10)
+var_alias Program Version = Z(11)
+
+DISKVARS = A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, U, V, X, Z
+DISKOPTIONS = FULLHEADERS
+DISKFORMAT = 16.3
+DISKCOLUMNS = 1
+Y2KCOMPLIANT
+
+\-------------------------------------------------------------------------
+\State Set 1 - Control Program
+
+S.S.1,
+S1,	\State 1 sets the default variables
+	0.01": SET Z(0) = ^SessionLength, Z(1) = ^NumberOfTrials, Z(2) = ^NumberOfTimebins;
+	SET Z(3) = ^TrialTimebinSize, Z(4) = ^CSIdentity, Z(5) = ^CSduration;
+	SET Z(6) = ^USDeliveryVI, Z(7) = ^PelletsPerTrial;
+	SET Z(8) = ^ReinforcerType, Z(9) = ^ClickerFreq, Z(11) = ^Version;
+
+	\Seal all the arrays
+	SET B(1) = -987.987, C(1) = -987.987, D(1) = -987.987;
+	SET E(1) = -987.987, F(1) = -987.987, G(1) = -987.987;
+	SET H(1) = -987.987, I(1) = -987.987;
+
+	SHOW 1, Initialising, Z(11); K^NewBoxLoaded ---> S2
+
+S2,	\State 2 waits for slave boxes to delcare they have finished collecting
+	\or for the master box to stop waiting 
+	#K^Collected ! #Z^NoFriends: ---> S3
+
+	\The NewBoxLoaded K-Pulse resets the counter on the master box competition
+	\Alternatively, it returns boxes to the beginning of the competition
+
+	#K^NewBoxLoaded ! #K^Reacquire: SET X(9) = 0 ---> SX
+
+	#K1: SET Z(10) = 1; SHOW 1, Setting Master, Z(10) ---> SX
+	#K2: IF (Z(10) = 0) OR (Z(10) > 2) [@SET, @IGNORE]
+		@SET: SET Z(10) = 2; SHOW 1, Setting Master, Z(10) ---> SX
+		@IGNORE: ---> SX
+	#K3: IF (Z(10) = 0) OR (Z(10) > 3) [@SET, @IGNORE]
+		@SET: SET Z(10) = 3; SHOW 1, Setting Master, Z(10) ---> SX
+		@IGNORE: ---> SX
+	#K4: IF (Z(10) = 0) OR (Z(10) > 4) [@SET, @IGNORE]
+		@SET: SET Z(10) = 4; SHOW 1, Setting Master, Z(10) ---> SX
+		@IGNORE: ---> SX
+	#K5: IF (Z(10) = 0) OR (Z(10) > 5) [@SET, @IGNORE]
+		@SET: SET Z(10) = 5; SHOW 1, Setting Master, Z(10) ---> SX
+		@IGNORE: ---> SX
+
+S3,	\State 3 waist for the ^GOGOGO K-Pulse
+	#K^GOGOGO: ON ^Fan, ^Houselight; SHOW 1, Session Time, X(0);
+
+	\Set the program start time
+	SET STARTHOURS = CURRENTHOURS;
+	SET STARTMINUTES = CURRENTMINUTES, STARTSECONDS = CURRENTSECONDS ---> S4
+
+	#K^NewBoxLoaded ! #K^Reacquire: ---> S2
+
+S4,	\State 4 is the main session clock
+	1": ADD X(0); SHOW 1, Session Time, X(0);
+	IF X(0) / 60 >= Z(0) [@SHUTDOWN, @NULL]
+		@SHUTDOWN: Z^Shutdown; OFF ^Fan, ^Houselight ---> S5
+		@NULL: ---> SX
+
+S5,	\State 5 shuts down the program and saves the data
+	1": ---> STOPABORTFLUSH
+
+\-------------------------------------------------------------------------
+\State Set 2 - Centisecond Clock
+
+S.S.2,
+S1,	\State 1 waits for the start command (as delivered by K^GOGOGO)
+	\It will also seal the trial bins in advance
+	#K^GOGOGO: SET S = (Z(5) * 3 * Z(1)) / Z(3);
+	SET J(S) = -987.987, L(S) = -987.987, M(S) = -987.987;
+	SET O(S) = -987.987;
+
+	\Seal the trial latency arrays in advance
+	SET S = Z(1);
+	SET K(S) = -987.987, N(S) = -987.987 ---> S2
+
+S2,	\State 2 counts upwards in 10ms (1cs) increments during the ITI
+	0.01": SET X(1) = X(1) + 0.01, X(2) = X(2) + 0.01;
+	
+	IF ((X(2) + 0.01) / 60 >= (Z(0) / Z(2))) AND (T + 1 < Z(2)) [@SHIFT, @STAY]
+		@SHIFT: SET X(2) = 0; ADD T; SET H(T) = 0, I(T) = 0;
+		SET H(T+1) = -987.987, I(T+1) = -987.987 ---> SX
+		@STAY: ---> SX
+
+	#Z^PreCSplus: SET X(3) = 0 - Z(5), X(5) = 0;
+	SET X(16) = (Z(5) * 3 * A(8)) / Z(3);
+	SET X(17) = A(8) ---> S3
+
+	#Z^PreCSminus: SET X(4) = 0 - Z(5), X(5) = 0;
+	SET X(18) = (Z(5) * 3 * A(9)) / Z(3);
+	SET X(19) = A(9) ---> S4
+
+	#Z^Shutdown: ---> S9
+
+S3,	\State 3 counts upwards in 10ms (1cs) increments during the CS+
+	0.01": SET X(1) = X(1) + 0.01, X(2) = X(2) + 0.01;
+	SET X(3) = X(3) + 0.01, X(5) = X(5) + 0.01;
+	
+	IF ((X(2) + 0.01) / 60 >= (Z(0) / Z(2))) AND (T + 1 < Z(2)) [@SHIFT, @STAY]
+		@SHIFT: SET X(2) = 0; ADD T; SET H(T) = 0, I(T) = 0;
+		SET H(T+1) = -987.987, I(T+1) = -987.987;
+		IF (X(5) >= Z(3)) AND ((X(16) + 1) < ((Z(5) * 3 * Z(1)) / Z(3))) [@TBIN, @NULL]
+			@TBIN: SET X(5) = 0; ADD X(16) ---> SX
+			@NULL: ---> SX
+		@STAY: IF (X(5) >= Z(3)) AND ((X(16) + 1) < ((Z(5) * 3 * Z(1)) / Z(3))) [@TBIN, @NULL]
+			@TBIN: SET X(5) = 0; ADD X(16) ---> SX
+			@NULL: ---> SX
+
+	#Z^EndPostPlus: IF (X(6) - 0.001 <= Z(5)) AND (S.S.3 < 8) [@GOPRE, @NULL]
+		@GOPRE: IF X(7) = Z(4) [@PLUS, @MINUS]
+			@PLUS: ---> SX
+			@MINUS: ---> S4
+		@NULL: ---> S2
+
+	#Z^PreCSplus! #Z^PostPlusPrePlus: SET X(23) = X(16), X(24) = (Z(5) * A(8) * 3) / Z(3);
+	SET X(3) = 0 - Z(5), X(5) = 0;
+	SET X(16) = (Z(5) * 3 * A(8)) / Z(3);
+	SET X(17) = A(8) ---> S7
+
+	#Z^PreCSminus ! #Z^PostPlusPreMinus: SET X(23) = X(16), X(24) = (Z(5) * A(8) * 3) / Z(3);
+	SET X(4) = 0 - Z(5), X(5) = 0;
+	SET X(18) = (Z(5) * 3 * A(9)) / Z(3);
+	SET X(19) = A(9) ---> S5
+
+	#Z^Shutdown: ---> S9
+
+S4,	\State 4 counts upwards in 10ms (1cs) increments during the CS-
+	0.01": SET X(1) = X(1) + 0.01, X(2) = X(2) + 0.01;
+	SET X(4) = X(4) + 0.01, X(5) = X(5) + 0.01;
+	
+	IF ((X(2) + 0.01) / 60 >= (Z(0) / Z(2))) AND (T + 1 < Z(2)) [@SHIFT, @STAY]
+		@SHIFT: SET X(2) = 0; ADD T; SET H(T) = 0, I(T) = 0;
+		SET H(T+1) = -987.987, I(T+1) = -987.987;
+		IF (X(5) >= Z(3)) AND ((X(18) + 1) < ((Z(5) * 3 * Z(1)) / Z(3))) [@TBIN, @NULL]
+			@TBIN: SET X(5) = 0; ADD X(18) ---> SX
+			@NULL: ---> SX
+		@STAY: IF (X(5) >= Z(3)) AND ((X(18) + 1) < ((Z(5) * 3 * Z(1)) / Z(3))) [@TBIN, @NULL]
+			@TBIN: SET X(5) = 0; ADD X(18) ---> SX
+			@NULL: ---> SX
+
+	#Z^EndPostMinus: IF (X(6) - 0.001 <= Z(5)) AND (S.S.3 < 8) [@GOPRE, @NULL]
+		@GOPRE: IF X(7) = Z(4) [@PLUS, @MINUS]
+			@PLUS: ---> S3
+			@MINUS: ---> SX
+		@NULL: ---> S2
+
+	#Z^PreCSplus ! #Z^PostMinusPrePlus: SET X(23) = X(18), X(24) = (Z(5) * A(9) * 3) / Z(3);
+	SET X(3) = 0 - Z(5), X(5) = 0;
+	SET X(16) = (Z(5) * 3 * A(8)) / Z(3);
+	SET X(17) = A(8) ---> S6
+
+	#Z^PreCSminus ! #Z^PostMinusPreMinus: SET X(23) = X(18), X(24) = (Z(5) * A(9) * 3) / Z(3);
+	SET X(4) = 0 - Z(5), X(5) = 0;
+	SET X(18) = (Z(5) * 3 * A(9)) / Z(3);
+	SET X(19) = A(9) ---> S8
+
+	#Z^Shutdown: ---> S9
+
+S5,	\State 5 counts upwards in 10ms (1cs) increments during the Post-CS+ and Pre-CS-
+	0.01": SET X(1) = X(1) + 0.01, X(2) = X(2) + 0.01;
+	
+	SET X(4) = X(4) + 0.01, X(5) = X(5) + 0.01;
+	
+	IF ((X(2) + 0.01) / 60 >= (Z(0) / Z(2))) AND (T + 1 < Z(2)) [@SHIFT, @STAY]
+		@SHIFT: SET X(2) = 0; ADD T; SET H(T) = 0, I(T) = 0;
+		SET H(T+1) = -987.987, I(T+1) = -987.987;
+		IF (X(5) >= Z(3)) AND ((X(16) + 1) < ((Z(5) * 3 * Z(1)) / Z(3))) [@TBIN, @NULL]
+			@TBIN: SET X(5) = 0; ADD X(16), X(18);
+			IF (X(23) + 1) < X(24) [@OKSHIFT, @MAX]
+				@OKSHIFT: ADD X(23) ---> SX
+				@MAX: ---> SX
+			@NULL: ---> SX
+		@STAY: IF (X(5) >= Z(3)) AND ((X(16) + 1) < ((Z(5) * 3 * Z(1)) / Z(3))) [@TBIN, @NULL]
+			@TBIN: SET X(5) = 0; ADD X(16), X(18);
+			IF (X(23) + 1) < X(24) [@OKSHIFT, @MAX]
+				@OKSHIFT: ADD X(23) ---> SX
+				@MAX: ---> SX
+			@NULL: ---> SX
+
+	#Z^EndPostPlus ! #Z^CSminus: ---> S4
+	#Z^Shutdown: ---> S9
+
+S6,	\State 6 counts upwards in 10ms (1cs) increments during the Post-CS- and Pre-CS+
+	0.01": SET X(1) = X(1) + 0.01, X(2) = X(2) + 0.01;
+	
+	SET X(4) = X(4) + 0.01, X(5) = X(5) + 0.01;
+	
+	IF ((X(2) + 0.01) / 60 >= (Z(0) / Z(2))) AND (T + 1 < Z(2)) [@SHIFT, @STAY]
+		@SHIFT: SET X(2) = 0; ADD T; SET H(T) = 0, I(T) = 0;
+		SET H(T+1) = -987.987, I(T+1) = -987.987;
+		IF (X(5) >= Z(3)) AND ((X(18) + 1) < ((Z(5) * 3 * Z(1)) / Z(3))) [@TBIN, @NULL]
+			@TBIN: SET X(5) = 0; ADD X(16), X(18);
+			IF (X(23) + 1) < X(24) [@OKSHIFT, @MAX]
+				@OKSHIFT: ADD X(23) ---> SX
+				@MAX: ---> SX
+			@NULL: ---> SX
+		@STAY: IF (X(5) >= Z(3)) AND ((X(18) + 1) < ((Z(5) * 3 * Z(1)) / Z(3))) [@TBIN, @NULL]
+			@TBIN: SET X(5) = 0; ADD X(16), X(18);
+			IF (X(23) + 1) < X(24) [@OKSHIFT, @MAX]
+				@OKSHIFT: ADD X(23) ---> SX
+				@MAX: ---> SX
+			@NULL: ---> SX
+	
+	#Z^EndPostMinus ! #Z^CSplus: ---> S3
+	#Z^Shutdown: ---> S9
+
+S7,	\State 7 counts upwards in 10ms (1cs) increments during the Post-CS+ and Pre-CS+
+	0.01": SET X(1) = X(1) + 0.01, X(2) = X(2) + 0.01;
+	
+	SET X(4) = X(4) + 0.01, X(5) = X(5) + 0.01;
+	
+	IF ((X(2) + 0.01) / 60 >= (Z(0) / Z(2))) AND (T + 1 < Z(2)) [@SHIFT, @STAY]
+		@SHIFT: SET X(2) = 0; ADD T; SET H(T) = 0, I(T) = 0;
+		SET H(T+1) = -987.987, I(T+1) = -987.987;
+		IF (X(5) >= Z(3)) AND ((X(16) + 1) < ((Z(5) * 3 * Z(1)) / Z(3))) [@TBIN, @NULL]
+			@TBIN: SET X(5) = 0; ADD X(16);
+			IF (X(23) + 1) < X(24) [@OKSHIFT, @MAX]
+				@OKSHIFT: ADD X(23) ---> SX
+				@MAX: ---> SX
+			@NULL: ---> SX
+		@STAY: IF (X(5) >= Z(3)) AND ((X(16) + 1) < ((Z(5) * 3 * Z(1)) / Z(3))) [@TBIN, @NULL]
+			@TBIN: SET X(5) = 0; ADD X(16);
+			IF (X(23) + 1) < X(24) [@OKSHIFT, @MAX]
+				@OKSHIFT: ADD X(23) ---> SX
+				@MAX: ---> SX
+			@NULL: ---> SX
+
+	#Z^EndPostPlus ! #Z^CSplus: ---> S3
+	#Z^Shutdown: ---> S9
+
+S8,	\State 8 counts upwards in 10ms (1cs) increments during the Post-CS- and Pre-CS-
+	0.01": SET X(1) = X(1) + 0.01, X(2) = X(2) + 0.01;
+	
+	SET X(4) = X(4) + 0.01, X(5) = X(5) + 0.01;
+	
+	IF ((X(2) + 0.01) / 60 >= (Z(0) / Z(2))) AND (T + 1 < Z(2)) [@SHIFT, @STAY]
+		@SHIFT: SET X(2) = 0; ADD T; SET H(T) = 0, I(T) = 0;
+		SET H(T+1) = -987.987, I(T+1) = -987.987;
+		IF (X(5) >= Z(3)) AND ((X(18) + 1) < ((Z(5) * 3 * Z(1)) / Z(3))) [@TBIN, @NULL]
+			@TBIN: SET X(5) = 0; ADD X(18);
+			IF (X(23) + 1) < X(24) [@OKSHIFT, @MAX]
+				@OKSHIFT: ADD X(23) ---> SX
+				@MAX: ---> SX
+			@NULL: ---> SX
+		@STAY: IF (X(5) >= Z(3)) AND ((X(18) + 1) < ((Z(5) * 3 * Z(1)) / Z(3))) [@TBIN, @NULL]
+			@TBIN: SET X(5) = 0; ADD X(18);
+			IF (X(23) + 1) < X(24) [@OKSHIFT, @MAX]
+				@OKSHIFT: ADD X(23) ---> SX
+				@MAX: ---> SX
+			@NULL: ---> SX
+
+	#Z^EndPostMinus ! #Z^CSminus: ---> S4
+	#Z^Shutdown: ---> S9
+
+S9,	\State 9 is a holding state
+	#START: ---> SX
+	
+\-------------------------------------------------------------------------
+\State Set 3 - Trial Management
+
+S.S.3,
+S1,	\State  1 waits for the start command (via ^GOGOGO)
+	#K^GOGOGO: SET X(6) = U(Y); SET X(7) = V(W); ADD Y, W;
+	IF X(7) = 1 [@TONE, @CLICKER]
+		@TONE: IF Z(4) = 1 [@PLUS, @MINUS]
+			@PLUS: SET X(3) = 0 - X(6);
+			IF X(6) <= Z(5) [@PRECS, @ITI]
+				@PRECS: SET X(28) = 1; Z^PreCSplus ---> S2
+				@ITI: ---> S2
+			@MINUS: SET X(4) = 0 - X(6);
+			IF X(6) <= Z(5) [@PRECS, @ITI]
+				@PRECS: SET X(28) = 1; Z^PreCSminus ---> S2
+				@ITI: ---> S2
+		@CLICKER: IF Z(4) = 2 [@PLUS, @MINUS]
+			@PLUS: SET X(3) = 0 - X(6);
+			IF X(6) <= Z(5) [@PRECS, @ITI]
+				@PRECS: SET X(28) = 1; Z^PreCSplus ---> S5
+				@ITI: ---> S5
+			@MINUS: SET X(4) = 0 - X(6);
+			IF X(6) <= Z(5) [@PRECS, @ITI]
+				@PRECS: SET X(28) = 1; Z^PreCSminus ---> S5
+				@ITI: ---> S5
+
+S2,	\State 2 waits to deliver a ^Tone CS
+	0.01": SET X(6) = X(6) - 0.01; IF X(6) - 0.001 <= 0 [@TONE, @WAIT]
+		@TONE: SET X(28) = 0; ON ^Tone; SET X(6) = Z(5) * 1"; IF Z(4) = 1 [@PLUS, @MINUS]
+			@PLUS: Z^CSplus; SET S = X(10); SET B(S) = X(1); ADD X(10);
+			SET S = X(10), B(S) = -987.987 ---> S3
+			@MINUS: Z^CSminus; SET S = X(10); SET B(S) = 0 - X(1); ADD X(10);
+			SET S = X(10), B(S) = -987.987 ---> S4
+		@WAIT: IF (X(6) - 0.001 <= Z(5)) AND (X(28) < 0.5) [@GOPRE, @NULL]
+			@GOPRE: SET X(28) = 1; IF Z(4) = 1 [@PLUS, @MINUS]
+				@PLUS: Z^PreCSplus ---> SX
+				@MINUS: Z^PreCSminus ---> SX
+			@NULL: ---> SX
+
+S3,	\State 3 waits to switch off the ^Tone CS+
+	X(6)#T: OFF ^Tone; IF (A(8) = Z(1)) AND (A(9) = Z(1)) [@TRIALSCOMPLETE, @CONTINUE]
+		@TRIALSCOMPLETE: Z^LastPlus ---> S8
+		@CONTINUE:  SET X(6) = U(Y), X(7) = V(W); ADD Y, W;
+		IF X(7) = 1 [@TONE, @CLICKER]
+			@TONE: IF X(6) <= Z(5) [@PRECS, @POSTCS]
+				@PRECS: Z^PostPlusPrePlus ---> S2
+				@POSTCS: Z^PostCSplus ---> S2
+			@CLICKER: IF X(6) <= Z(5) [@PRECS, @POSTCS]
+				@PRECS: Z^PostPlusPreminus ---> S5
+				@POSTCS: Z^PostCSplus ---> S5
+
+S4,	\State 4 waits to switch off the ^Tone CS-
+	X(6)#T: OFF ^Tone;  IF (A(8) = Z(1)) AND (A(9) = Z(1)) [@TRIALSCOMPLETE, @CONTINUE]
+		@TRIALSCOMPLETE: Z^LastMinus ---> S8
+		@CONTINUE: SET X(6) = U(Y), X(7) = V(W); ADD Y, W;
+		IF X(7) = 1 [@TONE, @CLICKER]
+			@TONE: IF X(6) <= Z(5) [@PRECS, @POSTCS]
+				@PRECS: Z^PostminusPreminus ---> S2
+				@POSTCS: Z^PostCSminus ---> S2
+			@CLICKER: IF X(6) <= Z(5) [@PRECS, @POSTCS]
+				@PRECS: Z^PostminusPreplus ---> S5
+				@POSTCS: Z^PostCSminus ---> S5
+
+S5,	\State 5 waits to deliver a ^Clicker CS
+	0.01": SET X(6) = X(6) - 0.01; IF X(6) - 0.001 <= 0 [@CLICK, @WAIT]
+		@CLICK: SET X(28) = 0; ON ^Clicker; SET X(6) = Z(5) * 1"; IF Z(4) = 2 [@PLUS, @MINUS]
+			@PLUS: Z^CSplus; SET S = X(10); SET B(S) = X(1); ADD X(10);
+			SET S = X(10), B(S) = -987.987 ---> S6
+			@MINUS: Z^CSminus; SET S = X(10); SET B(S) = 0 - X(1); ADD X(10);
+			SET S = X(10), B(S) = -987.987 ---> S7
+		@WAIT: IF (X(6) - 0.001 <= Z(5)) AND (X(28) < 0.5) [@GOPRE, @NULL]
+			@GOPRE: SET X(28) = 1; IF Z(4) = 2 [@PLUS, @MINUS]
+				@PLUS: Z^PreCSplus ---> SX
+				@MINUS: Z^PreCSminus ---> SX
+			@NULL: ---> SX
+
+S6,	\State 6 waits to switch off the ^Clicker CS+
+	X(6)#T: OFF ^Clicker; IF (A(8) = Z(1)) AND (A(9) = Z(1)) [@TRIALSCOMPLETE, @CONTINUE]
+		@TRIALSCOMPLETE: Z^LastPlus ---> S8
+		@CONTINUE: SET X(6) = U(Y), X(7) = V(W); ADD Y, W;
+		IF X(7) = 1 [@TONE, @CLICKER]
+			@TONE: IF X(6) <= Z(5) [@PRECS, @POSTCS]
+				@PRECS: Z^PostplusPreminus ---> S2
+				@POSTCS: Z^PostCSplus ---> S2
+			@CLICKER: IF X(6) <= Z(5) [@PRECS, @POSTCS]
+				@PRECS: Z^PostPlusPreplus ---> S5
+				@POSTCS: Z^PostCSplus ---> S5
+
+S7,	\State 7 waits to switch off the ^Clicker CS-
+	X(6)#T: OFF ^Clicker; IF (A(8) = Z(1)) AND (A(9) = Z(1)) [@TRIALSCOMPLETE, @CONTINUE]
+		@TRIALSCOMPLETE: Z^LastMinus ---> S8
+		@CONTINUE: SET X(6) = U(Y), X(7) = V(W); ADD Y, W;
+		IF X(7) = 1 [@TONE, @CLICKER]
+			@TONE: IF X(6) <= Z(5) [@PRECS, @POSTCS]
+				@PRECS: Z^PostminusPreplus ---> S2
+				@POSTCS: Z^PostCSminus ---> S2
+			@CLICKER: IF X(6) <= Z(5) [@PRECS, @POSTCS]
+				@PRECS: Z^PostminusPreminus ---> S5
+				@POSTCS: Z^PostCSminus ---> S5
+
+S8,	\State 8 is a holding state
+	#START: ---> SX
+
+\-------------------------------------------------------------------------
+\State Set 4 - Reward Delivery and Post-CS control
+
+S.S.4,
+S1,	\State 1 waits for the start command, via K^GOGOGO
+	#K^GOGOGO: IF Z(6) < 0 [@NEGATIVE, @POSITIVE]
+		@NEGATIVE: ---> S2
+		@POSITIVE: INITCONSTPROBARR R, Z(6) ---> S2
+
+S2,	\State 2 waits for a ^CSplus or ^CSminus Z-Pulse
+	\If it receives a ^CSminus Z-Pulse instead, it will add to the total
+	#Z^CSplus: ADD A(8); RANDD X(9) = R; SET X(9) = X(9) * 1";
+	SET X(8) = 0 ---> S3
+
+	#Z^CSminus: ADD A(9) ---> S5
+
+	#Z^Shutdown: ---> S8
+
+S3,	\State 3 waits to deliver a reinforcer during a CS+
+	X(9)#T: ADD X(8), A(10); IF Z(8) = 1 [@FLUID, @PELLET]
+		@FLUID: ON ^LiquidDispenser ---> S4
+		@PELLET: ON ^Pellet ---> S4
+
+	#Z^Shutdown: ---> S8
+
+S4,	\State 4 waits to switch off reinforcer delivery
+	0.5": OFF ^LiquidDispenser, ^Pellet; IF X(8) < Z(7) [@ANOTHER, @STOP]
+		@ANOTHER: RANDD X(9) = R; SET X(9) = X(9) * 1" ---> S3
+		@STOP: ---> S5
+
+	#Z^Shutdown: ---> S8
+
+S5,	\State 5 waits for the Post-CS Z-Pulses
+	#Z^PostCSplus ! #Z^LastPlus: SET X(9) = Z(5) * 1" ---> S6
+	#Z^PostCSminus ! #Z^LastMinus: SET X(9) = Z(5) * 1" ---> S7
+	#Z^PostPlusPreMinus ! #Z^PostPlusPrePlus: ---> S2
+	#Z^PostMinusPrePlus ! #Z^PostMinusPreMinus: ---> S2
+
+	#Z^Shutdown: ---> S8
+
+S6,	\State 6 waits to close out the Post-CS+ Period
+	X(9)#T: Z^EndPostPlus; IF S.S.3 = 8 [@COMPLETE, @CONTINUE]
+		@COMPLETE: ---> S8
+		@CONTINUE: ---> S2
+
+	#Z^Shutdown: ---> S8
+
+S7,	\State 7 waits to close out the Post-CS- Period
+	X(9)#T: Z^EndPostMinus; IF S.S.3 = 8 [@COMPLETE, @CONTINUE]
+		@COMPLETE: ---> S8
+		@CONTINUE: ---> S2
+
+	#Z^Shutdown: ---> S8
+
+S8,	\State 8 is a holding state
+	#START: ---> SX
+
+\-------------------------------------------------------------------------
+\State Set 5 - Clicker Operation
+
+S.S.5,
+S1,	\State 1 waits for K^GOGOGO and sets the clicker on\off time
+	#K^GOGOGO: SET X(29) = 1" / (Z(9) * 2) ---> S2
+
+S2,	\State 2 waits for a the CS Z-Pulses
+	#Z^CSplus: IF Z(4) = 2 [@START, @NULL]
+		@START: ---> S3
+		@NULL: ---> SX
+
+	#Z^CSminus: IF Z(4) = 1 [@START, @NULL]
+		@START: ---> S3
+		@NULL: ---> SX
+
+	#Z^Shutdown: ---> S5
+
+S3,	\State 4 switches off the clicker
+	X(29)#T: OFF ^Clicker ---> S4
+
+	#Z^PostCSplus ! #Z^PostCSminus: OFF ^Clicker ---> S2
+	#Z^PostPlusPreMinus ! #Z^PostPlusPrePlus: OFF ^Clicker ---> S2
+	#Z^PostMinusPrePlus ! #Z^PostMinusPreMinus: OFF ^Clicker ---> S2
+
+	#Z^LastPlus ! #Z^LastMinus: OFF ^Clicker ---> S5
+	#Z^Shutdown:  OFF ^Clicker ---> S5
+
+S4,	\State 5 switches on the clicker
+	X(29)#T: ON ^Clicker ---> S3
+
+	#Z^PostCSplus ! #Z^PostCSminus: OFF ^Clicker ---> S2
+	#Z^PostPlusPreMinus ! #Z^PostPlusPrePlus: OFF ^Clicker ---> S2
+	#Z^PostMinusPrePlus ! #Z^PostMinusPreMinus: OFF ^Clicker ---> S2
+
+	#Z^LastPlus ! #Z^LastMinus: OFF ^Clicker ---> S5
+	#Z^Shutdown:  OFF ^Clicker ---> S5
+
+S5,	\State 5 is a holding state
+	#START: ---> SX
+
+\-------------------------------------------------------------------------
+\State Set 6 - Magazine Entry Recording
+
+S.S.6,
+S1,	\State 1 waits for the start command, via K^GOGOGO
+	#K^GOGOGO: SHOW 2, Magazine Entries, A(0);
+	SHOW 3, CS+ Mag Entries, A(3);
+	SHOW 4, CS- Mag Entries, A(6) ---> S2
+
+S2,	\State 2 counts magazine entries during the ITI
+	#R^Magazine: ADD A(0), A(1), H(T); SHOW 2, Magazine Entries, A(0);
+	SET S = X(11); SET C(S) = X(1); ADD X(11); SET S = X(11); SET C(S) = -987.987 ---> SX
+
+	#Z^PreCSplus: ---> S3
+	#Z^PreCSminus: ---> S6
+
+	#Z^Shutdown: ---> S13
+
+S3,	\State 3 counts magazine entries during the PreCS+
+	#R^Magazine: ADD A(0), A(2), H(T); SHOW 2, Magazine Entries, A(0);
+	SET S = X(16); ADD J(S); SET S = X(11); SET C(S) = X(1); ADD X(11);
+	SET S = X(11); SET C(S) = -987.987 ---> SX
+
+	#Z^CSplus: ---> S4
+
+	#Z^Shutdown: ---> S13
+
+S4,	\State 4 counts magazine entries during the CS+
+	#R^Magazine: ADD A(0), A(3), H(T); SHOW 2, Magazine Entries, A(0);
+	SHOW 3, CS+ Mag Entries, A(3); SET S = X(16); ADD J(S); SET S = X(11);
+	SET C(S) = X(1); ADD X(11); SET S = X(11); SET C(S) = -987.987;
+	SET S = X(17); IF K(S) <= 0.005 [@LATENCY, @NULL]
+		@LATENCY: SET K(S) = X(3) ---> SX
+		@NULL: ---> SX
+
+	#Z^PostCSplus: ---> S5
+	#Z^PostPlusPreMinus: ---> S9
+	#Z^PostPlusPrePlus: ---> S10
+
+	#Z^Shutdown: ---> S13
+
+S5,	\State 5 counts magazine entries during the PostCS+
+	#R^Magazine: ADD A(0), A(4), H(T); SHOW 2, Magazine Entries, A(0);
+	SET S = X(16); ADD J(S); SET S = X(11);
+	SET C(S) = X(1); ADD X(11); SET S = X(11); SET C(S) = -987.987 ---> SX
+
+	#Z^EndPostPlus: IF (X(6) - 0.001 <= Z(5)) AND (S.S.3 < 8) [@GOPRE, @NULL]
+		@GOPRE: IF X(7) = Z(4) [@PLUS, @MINUS]
+			@PLUS: ---> S3
+			@MINUS: ---> S6
+		@NULL: ---> S2
+	#Z^PreCSplus: ---> S10
+	#Z^PreCSminus: ---> S9
+
+	#Z^Shutdown: ---> S13
+
+S6,	\State 6 counts magazine entries during the PreCS-
+	#R^Magazine: ADD A(0), A(5), H(T); SHOW 2, Magazine Entries, A(0);
+	SET S = X(18); ADD M(S); SET S = X(11); SET C(S) = X(1); ADD X(11);
+	SET S = X(11); SET C(S) = -987.987 ---> SX
+
+	#Z^CSminus: ---> S7
+
+	#Z^Shutdown: ---> S13
+
+S7,	\State 7 counts magazine entries during the CS-
+	#R^Magazine: ADD A(0), A(6), H(T); SHOW 2, Magazine Entries, A(0);
+	SHOW 4, CS- Mag Entries, A(6); SET S = X(18); ADD M(S); SET S = X(11);
+	SET C(S) = X(1); ADD X(11); SET S = X(11); SET C(S) = -987.987;
+	SET S = X(19); IF N(S) <= 0.005 [@LATENCY, @NULL]
+		@LATENCY: SET N(S) = X(4) ---> SX
+		@NULL: ---> SX
+
+	#Z^PostCSminus: ---> S8
+	#Z^PostMinusPrePlus: ---> S11
+	#Z^PostMinusPreMinus: ---> S12
+
+	#Z^Shutdown: ---> S13
+
+S8,	\State 8 counts magazine entries during the PostCS-
+	#R^Magazine: ADD A(0), A(7), H(T); SHOW 2, Magazine Entries, A(0);
+	SET S = X(18); ADD M(S); SET S = X(11); SET C(S) = X(1); ADD X(11);
+	SET S = X(11); SET C(S) = -987.987 ---> SX
+
+	#Z^EndPostMinus: IF (X(6) - 0.001 <= Z(5)) AND (S.S.3 < 8) [@GOPRE, @NULL]
+		@GOPRE: IF X(7) = Z(4) [@PLUS, @MINUS]
+			@PLUS: ---> S3
+			@MINUS: ---> S6
+		@NULL: ---> S2
+	#Z^PreCSplus: ---> S11
+	#Z^PreCSminus: ---> S12
+
+	#Z^Shutdown: ---> S13
+
+S9,	\State 9 counts magazine entries during the PostCS+PreCS-
+	#R^Magazine: ADD A(0), A(4), A(5), H(T); SHOW 2, Magazine Entries, A(0);
+	SET S = X(16); ADD J(S); SET S = X(18); ADD M(S); SET S = X(11);
+	SET C(S) = X(1); ADD X(11); SET S = X(11); SET C(S) = -987.987 ---> SX
+
+	#Z^CSminus: ---> S7
+	#Z^EndPostPlus: ---> S6
+
+	#Z^Shutdown: ---> S13
+
+S10,	\State 10 counts magazine entries during the PostCS+PreCS+
+	#R^Magazine: ADD A(0), A(2), A(4), H(T); SHOW 2, Magazine Entries, A(0);
+	SET S = X(16); ADD J(S); SET S = X(23); ADD J(S); SET S = X(11);
+	SET C(S) = X(1); ADD X(11); SET S = X(11); SET C(S) = -987.987 ---> SX
+
+	#Z^CSplus: ---> S4
+	#Z^EndPostPlus: ---> S3
+
+	#Z^Shutdown: ---> S13
+
+S11,	\State 11 counts magazine entries during the PostCS-PreCS+
+	#R^Magazine: ADD A(0), A(2), A(7), H(T); SHOW 2, Magazine Entries, A(0);
+	SET S = X(18); ADD M(S); SET S = X(16); ADD J(S);
+	SET S = X(11); SET C(S) = X(1); ADD X(11);
+	SET S = X(11); SET C(S) = -987.987 ---> SX
+
+	#Z^CSplus: ---> S4
+	#Z^EndPostMinus: ---> S3
+
+	#Z^Shutdown: ---> S13
+
+S12,	\State 12 counts magazine entries during the PostCS-PreCS-
+	#R^Magazine: ADD A(0), A(5), A(7), H(T); SHOW 2, Magazine Entries, A(0);
+	SET S = X(18); ADD M(S); SET S = X(23); ADD M(S);
+	SET S = X(11); SET C(S) = X(1); ADD X(11);
+	SET S = X(11); SET C(S) = -987.987 ---> SX
+
+	#Z^CSminus: ---> S7
+	#Z^EndPostMinus: ---> S6
+
+	#Z^Shutdown: ---> S13
+
+S13,	\State 13 is a holding state
+	#START: ---> SX
+
+\-------------------------------------------------------------------------
+\State Set 7 - Locomotor Activity Recording
+
+S.S.7,
+S1,	\State 1 waits for the start command, via K^GOGOGO
+	#K^GOGOGO: SHOW 5, Total Activity, A(11) ---> S2
+
+S2,	\State 2 counts locomotor activity during the ITI
+	#R^ActivityOne: IF X(27) = ^ActivityOne [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityOne;
+		ADD A(11), A(12), A(19), A(20), I(T);
+		SET S = X(12); SET D(S) = X(1); ADD X(12);
+		SET S = X(12); SET D(S) = -987.987;
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityTwo: IF X(27) = ^ActivityTwo [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityTwo;
+		ADD A(11), A(12), A(27), A(28), I(T);
+		SET S = X(13); SET E(S) = X(1); ADD X(13);
+		SET S = X(13); SET E(S) = -987.987;
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityThree: IF X(27) = ^ActivityThree [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityThree;
+		ADD A(11), A(12), A(35), A(36), I(T);
+		SET S = X(14); SET F(S) = X(1); ADD X(14);
+		SET S = X(14); SET F(S) = -987.987;
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityFour: IF X(27) = ^ActivityFour [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityFour;
+		ADD A(11), A(12), A(43), A(44), I(T);
+		SET S = X(15); SET G(S) = X(1); ADD X(15);
+		SET S = X(15); SET G(S) = -987.987;
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#Z^PreCSplus: ---> S3
+	#Z^PreCSminus: ---> S6
+
+	#Z^Shutdown: ---> S13
+
+S3,	\State 3 counts locomotor activity during the PreCS+
+	#R^ActivityOne: IF X(27) = ^ActivityOne [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityOne;
+		ADD A(11), A(13), A(19), A(21), I(T);
+		SET S = X(12); SET D(S) = X(1); ADD X(12);
+		SET S = X(12); SET D(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityTwo: IF X(27) = ^ActivityTwo [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityTwo;
+		ADD A(11), A(13), A(27), A(29), I(T);
+		SET S = X(13); SET E(S) = X(1); ADD X(13);
+		SET S = X(13); SET E(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityThree: IF X(27) = ^ActivityThree [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityThree;
+		ADD A(11), A(13), A(35), A(37), I(T);
+		SET S = X(14); SET F(S) = X(1); ADD X(14);
+		SET S = X(14); SET F(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityFour: IF X(27) = ^ActivityFour [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityFour;
+		ADD A(11), A(13), A(43), A(45), I(T);
+		SET S = X(15); SET G(S) = X(1); ADD X(15);
+		SET S = X(15); SET G(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#Z^CSplus: ---> S4
+
+	#Z^Shutdown: ---> S13
+
+S4,	\State 4 counts locomotor activity during the CS+
+	#R^ActivityOne: IF X(27) = ^ActivityOne [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityOne;
+		ADD A(11), A(14), A(19), A(22), I(T);
+		SET S = X(12); SET D(S) = X(1); ADD X(12);
+		SET S = X(12); SET D(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityTwo: IF X(27) = ^ActivityTwo [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityTwo;
+		ADD A(11), A(14), A(27), A(30), I(T);
+		SET S = X(13); SET E(S) = X(1); ADD X(13);
+		SET S = X(13); SET E(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityThree: IF X(27) = ^ActivityThree [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityThree;
+		ADD A(11), A(14), A(35), A(38), I(T);
+		SET S = X(14); SET F(S) = X(1); ADD X(14);
+		SET S = X(14); SET F(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityFour: IF X(27) = ^ActivityFour [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityFour;
+		ADD A(11), A(14), A(43), A(46), I(T);
+		SET S = X(15); SET G(S) = X(1); ADD X(15);
+		SET S = X(15); SET G(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#Z^PostCSplus: ---> S5
+	#Z^PostPlusPreMinus: ---> S9
+	#Z^PostPlusPrePlus: ---> S10
+
+	#Z^Shutdown: ---> S13
+
+S5,	\State 5 counts locomotor activity during the PostCS+
+	#R^ActivityOne: IF X(27) = ^ActivityOne [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityOne;
+		ADD A(11), A(15), A(19), A(23), I(T);
+		SET S = X(12); SET D(S) = X(1); ADD X(12);
+		SET S = X(12); SET D(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityTwo: IF X(27) = ^ActivityTwo [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityTwo;
+		ADD A(11), A(15), A(27), A(31), I(T);
+		SET S = X(13); SET E(S) = X(1); ADD X(13);
+		SET S = X(13); SET E(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityThree: IF X(27) = ^ActivityThree [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityThree;
+		ADD A(11), A(15), A(35), A(39), I(T);
+		SET S = X(14); SET F(S) = X(1); ADD X(14);
+		SET S = X(14); SET F(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityFour: IF X(27) = ^ActivityFour [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityFour;
+		ADD A(11), A(15), A(43), A(47), I(T);
+		SET S = X(15); SET G(S) = X(1); ADD X(15);
+		SET S = X(15); SET G(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#Z^EndPostPlus: IF (X(6) - 0.001 <= Z(5)) AND (S.S.3 < 8) [@GOPRE, @NULL]
+		@GOPRE: IF X(7) = Z(4) [@PLUS, @MINUS]
+			@PLUS: ---> S3
+			@MINUS: ---> S6
+		@NULL: ---> S2
+	#Z^PreCSplus: ---> S10
+	#Z^PreCSminus: ---> S9
+
+	#Z^Shutdown: ---> S13
+
+S6,	\State 6 counts locomotor activity during the PreCS-
+	#R^ActivityOne: IF X(27) = ^ActivityOne [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityOne;
+		ADD A(11), A(16), A(19), A(24), I(T);
+		SET S = X(12); SET D(S) = X(1); ADD X(12);
+		SET S = X(12); SET D(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityTwo: IF X(27) = ^ActivityTwo [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityTwo;
+		ADD A(11), A(16), A(27), A(32), I(T);
+		SET S = X(13); SET E(S) = X(1); ADD X(13);
+		SET S = X(13); SET E(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityThree: IF X(27) = ^ActivityThree [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityThree;
+		ADD A(11), A(16), A(35), A(40), I(T);
+		SET S = X(14); SET F(S) = X(1); ADD X(14);
+		SET S = X(14); SET F(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityFour: IF X(27) = ^ActivityFour [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityFour;
+		ADD A(11), A(16), A(43), A(48), I(T);
+		SET S = X(15); SET G(S) = X(1); ADD X(15);
+		SET S = X(15); SET G(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#Z^CSminus: ---> S7
+
+	#Z^Shutdown: ---> S13
+
+S7,	\State 7 counts locomotor activity during the CS-
+	#R^ActivityOne: IF X(27) = ^ActivityOne [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityOne;
+		ADD A(11), A(17), A(19), A(25), I(T);
+		SET S = X(12); SET D(S) = X(1); ADD X(12);
+		SET S = X(12); SET D(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityTwo: IF X(27) = ^ActivityTwo [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityTwo;
+		ADD A(11), A(17), A(27), A(33), I(T);
+		SET S = X(13); SET E(S) = X(1); ADD X(13);
+		SET S = X(13); SET E(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityThree: IF X(27) = ^ActivityThree [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityThree;
+		ADD A(11), A(17), A(35), A(41), I(T);
+		SET S = X(14); SET F(S) = X(1); ADD X(14);
+		SET S = X(14); SET F(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityFour: IF X(27) = ^ActivityFour [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityFour;
+		ADD A(11), A(17), A(43), A(49), I(T);
+		SET S = X(15); SET G(S) = X(1); ADD X(15);
+		SET S = X(15); SET G(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#Z^PostCSminus: ---> S8
+	#Z^PostMinusPrePlus: ---> S11
+	#Z^PostMinusPreMinus: ---> S12
+
+	#Z^Shutdown: ---> S13
+
+S8,	\State 8 counts locomotor activity during the PostCS-
+	#R^ActivityOne: IF X(27) = ^ActivityOne [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityOne;
+		ADD A(11), A(18), A(19), A(26), I(T);
+		SET S = X(12); SET D(S) = X(1); ADD X(12);
+		SET S = X(12); SET D(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityTwo: IF X(27) = ^ActivityTwo [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityTwo;
+		ADD A(11), A(18), A(27), A(34), I(T);
+		SET S = X(13); SET E(S) = X(1); ADD X(13);
+		SET S = X(13); SET E(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityThree: IF X(27) = ^ActivityThree [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityThree;
+		ADD A(11), A(18), A(35), A(42), I(T);
+		SET S = X(14); SET F(S) = X(1); ADD X(14);
+		SET S = X(14); SET F(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityFour: IF X(27) = ^ActivityFour [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityFour;
+		ADD A(11), A(18), A(43), A(50), I(T);
+		SET S = X(15); SET G(S) = X(1); ADD X(15);
+		SET S = X(15); SET G(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#Z^EndPostMinus: IF (X(6) - 0.001 <= Z(5)) AND (S.S.3 < 8) [@GOPRE, @NULL]
+		@GOPRE: IF X(7) = Z(4) [@PLUS, @MINUS]
+			@PLUS: ---> S3
+			@MINUS: ---> S6
+		@NULL: ---> S2
+	#Z^PreCSplus: ---> S11
+	#Z^PreCSminus: ---> S12
+
+	#Z^Shutdown: ---> S13
+
+S9,	\State 9 counts locomotor activity during the PostCS+PreCS-
+	#R^ActivityOne: IF X(27) = ^ActivityOne [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityOne;
+		ADD A(11), A(15), A(16), A(19), A(23), A(24), I(T);
+		SET S = X(12); SET D(S) = X(1); ADD X(12);
+		SET S = X(12); SET D(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityTwo: IF X(27) = ^ActivityTwo [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityTwo;
+		ADD A(11), A(15), A(16), A(27), A(31), A(32), I(T);
+		SET S = X(13); SET E(S) = X(1); ADD X(13);
+		SET S = X(13); SET E(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityThree: IF X(27) = ^ActivityThree [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityThree;
+		ADD A(11), A(15), A(16), A(35), A(39), A(40), I(T);
+		SET S = X(14); SET F(S) = X(1); ADD X(14);
+		SET S = X(14); SET F(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityFour: IF X(27) = ^ActivityFour [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityFour;
+		ADD A(11), A(15), A(16), A(43), A(47), A(48), I(T);
+		SET S = X(15); SET G(S) = X(1); ADD X(15);
+		SET S = X(15); SET G(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#Z^CSminus: ---> S7
+	#Z^EndPostPlus: ---> S6
+
+	#Z^Shutdown: ---> S13
+
+S10,	\State 10 counts locomotor activity during the PostCS+PreCS+
+	#R^ActivityOne: IF X(27) = ^ActivityOne [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityOne;
+		ADD A(11), A(13), A(15), A(19), A(21), A(23), I(T);
+		SET S = X(12); SET D(S) = X(1); ADD X(12);
+		SET S = X(12); SET D(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SET S = X(23); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityTwo: IF X(27) = ^ActivityTwo [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityTwo;
+		ADD A(11), A(13), A(15), A(27), A(29), A(31), I(T);
+		SET S = X(13); SET E(S) = X(1); ADD X(13);
+		SET S = X(13); SET E(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SET S = X(23); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityThree: IF X(27) = ^ActivityThree [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityThree;
+		ADD A(11), A(13), A(15), A(35), A(37), A(39), I(T);
+		SET S = X(14); SET F(S) = X(1); ADD X(14);
+		SET S = X(14); SET F(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SET S = X(23); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityFour: IF X(27) = ^ActivityFour [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityFour;
+		ADD A(11), A(13), A(15), A(43), A(45), A(47), I(T);
+		SET S = X(15); SET G(S) = X(1); ADD X(15);
+		SET S = X(15); SET G(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SET S = X(23); ADD L(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#Z^CSplus: ---> S4
+	#Z^EndPostPlus: ---> S3
+
+	#Z^Shutdown: ---> S13
+
+S11,	\State 11 counts locomotor activity during the PostCS-PreCS+
+	#R^ActivityOne: IF X(27) = ^ActivityOne [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityOne;
+		ADD A(11), A(13), A(18), A(19), A(21), A(26), I(T);
+		SET S = X(12); SET D(S) = X(1); ADD X(12);
+		SET S = X(12); SET D(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityTwo: IF X(27) = ^ActivityTwo [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityTwo;
+		ADD A(11), A(13), A(18), A(27), A(29), A(34), I(T);
+		SET S = X(13); SET E(S) = X(1); ADD X(13);
+		SET S = X(13); SET E(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityThree: IF X(27) = ^ActivityThree [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityThree;
+		ADD A(11), A(13), A(18), A(35), A(37), A(42), I(T);
+		SET S = X(14); SET F(S) = X(1); ADD X(14);
+		SET S = X(14); SET F(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityFour: IF X(27) = ^ActivityFour [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityFour;
+		ADD A(11), A(13), A(18), A(43), A(45), A(50), I(T);
+		SET S = X(15); SET G(S) = X(1); ADD X(15);
+		SET S = X(15); SET G(S) = -987.987;
+		SET S = X(16); ADD L(S);
+		SET S = X(18); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#Z^CSplus: ---> S4
+	#Z^EndPostMinus: ---> S3
+
+	#Z^Shutdown: ---> S13
+
+S12,	\State 12 counts locomotor activity during the PostCS-PreCS-
+	#R^ActivityOne: IF X(27) = ^ActivityOne [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityOne;
+		ADD A(11), A(16), A(18), A(19), A(24), A(26), I(T);
+		SET S = X(12); SET D(S) = X(1); ADD X(12);
+		SET S = X(12); SET D(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SET S = X(23); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityTwo: IF X(27) = ^ActivityTwo [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityTwo;
+		ADD A(11), A(16), A(18), A(27), A(32), A(34), I(T);
+		SET S = X(13); SET E(S) = X(1); ADD X(13);
+		SET S = X(13); SET E(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SET S = X(23); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityThree: IF X(27) = ^ActivityThree [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityThree;
+		ADD A(11), A(16), A(18), A(35), A(40), A(42), I(T);
+		SET S = X(14); SET F(S) = X(1); ADD X(14);
+		SET S = X(14); SET F(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SET S = X(23); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#R^ActivityFour: IF X(27) = ^ActivityFour [@IGNORE, @COUNT]
+		@IGNORE: ---> SX
+		@COUNT: SET X(27) = ^ActivityFour;
+		ADD A(11), A(16), A(18), A(43), A(48), A(50), I(T);
+		SET S = X(15); SET G(S) = X(1); ADD X(15);
+		SET S = X(15); SET G(S) = -987.987;
+		SET S = X(18); ADD O(S);
+		SET S = X(23); ADD O(S);
+		SHOW 5, Total Activity, A(11) ---> SX
+
+	#Z^CSminus: ---> S7
+	#Z^EndPostMinus: ---> S6
+
+	#Z^Shutdown: ---> S13
+
+S13,	\State 13 is a holding state
+	#START: ---> SX
+
+\-------------------------------------------------------------------------
+\State Set 8 - Master Box Determination and ITI generation
+
+S.S.8,
+S1,	\State 1 issues K-pulses with its box number
+	0.25": IF (Z(10) = 0) OR (Z(10) > BOX) [@CALL, @WAIT]
+		@CALL: KBOX ---> SX
+		@WAIT: KZ(10); ADD X(9); IF X(9) > 12 [@ACCEPT, @STAY]
+			@ACCEPT: Z^Mastered; K^Acceptance ---> S2
+			@STAY: ---> SX
+
+	#K^Acceptance: ---> S2
+
+S2,	\State 2 checks if this box is the master box
+	0.01": IF Z(10) = BOX [@MASTER, @SLAVE]
+		@MASTER: SHOW 1, Planning session, Z(1);
+		RANDD U(Y) = Q; ADD Y; SET X(20) = 0, X(21) = 0 ---> S3
+		@SLAVE: ---> S6
+
+S3,	\State 3 will select the ITIs
+	0.01": IF Y < (Z(1) * 2 + 1) [@ITI, @CUES]
+		@ITI: RANDD U(Y) = Q; ADD Y ---> SX
+		@CUES: SET U(Y) = -987.987 ---> S4
+
+S4,	\State 4 will select the cue identities
+	0.01": IF W < Z(1) * 2 [@MORE, @DONE]
+		@MORE: RANDD V(W) = P; IF V(W) = 1 [@ONE, @TWO]
+			@ONE: IF X(20) >= Z(1) [@OTHERCUE, @ACCEPT]
+				@OTHERCUE: SET V(W) = 2; ADD X(21), W ---> SX
+				@ACCEPT: ADD X(20), W ---> SX
+			@TWO: IF X(21) >= Z(1) [@OTHERCUE, @ACCEPT]
+				@OTHERCUE: SET V(W) = 1; ADD X(20), W ---> SX
+				@ACCEPT: ADD X(21), W ---> SX
+		@DONE: SET V(W) = -987.987 ---> S5
+
+S5,	\State 5 will clear the RANDD functions LIST Q
+	0.01": IF Y >= 9 [@OK, @CLEAR]
+		@OK: K^ReadyITI; SET W = 0, Y = 0; SHOW 1, Waiting for collection, Z(0) ---> S8
+		@CLEAR: RANDD X(22) = Q; ADD Y ---> SX
+
+S6,	\State 6 waits for ITI and cue generation to complete
+	#K^ReadyITI: SHOW 1, Collecting, Z(10); SET S = Z(10) ---> S7
+
+S7,	\State 7 will collect ITIs and cues from the master box
+	0.01": IF Y < (Z(1) * 2 + 2) [@COLLECT, @NULL]
+		@COLLECT: GETVAL U(Y) = S, U(Y); GETVAL V(W) = S, V(W);
+		ADD W, Y  ---> SX
+		@NULL: SET S = 0, W = 0, Y = 0; K^Collected;
+		SHOW 1, Ready, Z(0) ---> S9
+
+S8,	\State 8 is where the master box will issue the GOGOGO K-Pulse
+	\This will automatically synchronise all boxes to the same interrupt
+	#START: K^GOGOGO ---> S10
+	#K^GOGOGO: ---> S10
+
+	#K^Collected: SHOW 1, Ready, Z(0) ---> SX
+
+	7": Z^NoFriends; SHOW 1, Ready, Z(0) ---> SX
+
+	#K^NewBoxLoaded ! #K^Reacquire: ZEROARRAY U, V; SET Y = 0, W = 0 ---> S1
+
+S9,	\State 9 is a holding state but will accept the Reacquire K-Pulse
+	#K^GOGOGO: ---> S10
+	#START: K^GOGOGO ---> S10
+
+	#K^Reacquire: SET S = Z(10) ---> S1
+
+	#K^NewBoxLoaded: ZEROARRAY U, V; SET Y = 0, W = 0 ---> S1
+
+S10,	\State 10 is a final holding state
+	#START: ---> SX
+\-------------------------------------------------------------------------
+\State Set 9 - Pre Session Screen Updater
+
+S.S.9,
+S1,	\State 1 periodically updates the screen
+	#START ! #K^GOGOGO: ---> S2	
+
+	1": SHOW 3, Trials Per Cue, Z(1);
+	SHOW 4, Cue Duration (s), Z(2);
+	SHOW 5, Session Length (min), Z(3);
+	IF Z(4) < 1.5 [@TONE, @CLICK]
+		@TONE: SHOW 2, Tone CS+, Z(4) ---> SX
+		@CLICK: SHOW 2, Clicker CS+, Z(4) ---> SX
+
+S2,	\State 2 is a holding state
+	#START: ---> SX
