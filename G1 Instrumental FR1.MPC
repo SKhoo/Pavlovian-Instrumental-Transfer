@@ -1,0 +1,519 @@
+\-------------------------------------------------------------------------
+\ G1 Instrumental FR1
+\ Version: 1
+\ Created by Shaun Khoo (22 June 2019) based on S1 Operant Self-Administration
+\ >('.')<
+\ http://orcid.org/0000-0002-0972-3788
+\ License: MIT
+\-------------------------------------------------------------------------
+
+\CONTROL CONSTANTS
+^SessionLength = 40	\Session length in minutes
+^FixedRatio = 1		\Fixed ratio per reinforcer [Set to 0 for extinction]
+^MaximumRewards = 50	\Maximum rewards, set to 0 for no maximum
+^TimebinSize = 1	\Timebin size in minutes
+^ActiveLever = 1	\Active lever, set to 1 for left, 10 for right
+^RewardIdentity = 1	\1 = reward delivered via fluid dispenser
+			\2 = reward delivered pellet dispenser
+^Version = 100		\Program version number
+
+\INPUTS
+^LeftLever = 1
+^RightLever = 3
+^Magazine = 4
+^ActivityOne = 5
+^ActivityTwo = 6
+^ActivityThree = 7
+^ActivityFour = 8
+
+\OUTPUTS
+^LeftOut = 1
+^RightOut = 10
+^LiquidDispenser = 2
+
+^Pellet = 3
+^LeftLight = 4
+^RightLight = 5
+^Tone = 6
+^Houselight = 7
+^Pump = 8
+^Fan = 9
+\^Clicker = ??
+	
+\Z-PULSES
+^Reward = 1
+^EndTimeout = 2
+^Shutdown = 3
+
+\VARIABLES
+\VARIABLES - DATA - Session Totals
+DIM A = 26
+\Active Lever Presses = A(0)
+\Inactive Lever Presses = A(1)
+\Rewards = A(2)
+\Magazine Entries = A(3)
+\Total Activity = A(4)
+\Timeout Active Lever = A(5)
+\Timeout Inactive Lever = A(6)
+\Timeout Magazine Entries = A(7)
+\Timeout Total Activity = A(8)
+\Active Lever Latency = A(9)
+\Inactive Lever Latency = A(10)
+\Reward Latency = A(11)
+\Magazine Entry Latency = A(12)
+\ActivityOne Total = A(13)
+\ActivityTwo Total = A(14)
+\ActivityThree Total = A(15)
+\ActivityFour Total = A(16)
+\ActivityOne Timeout = A(17)
+\ActivityTwo Timeout = A(18)
+\ActivityThree Timeout = A(19)
+\ActivityFour Timeout = A(20)
+\ActivityOne Latency = A(21)
+\ActivityTwo Latency = A(22)
+\ActivityThree Latency = A(23)
+\ActivityFour Latency = A(24)
+\Session duration = A(25)
+var_alias Weight = A(26)
+
+\VARIABLES - DATA - Timecourse Arrays
+DIM B = 50000	\Active Lever,			subscript S/X(5)
+DIM C = 50000	\Inactive Lever			subscript S/X(6)
+DIM D = 50000	\Rewards			subscript S/X(7)
+DIM E = 50000	\Magazine Entries		subscript S/X(8)
+DIM F = 50000	\ActivityOne			subscript S/X(9)
+DIM G = 50000	\ActivityTwo			subscript S/X(10)
+DIM H = 50000	\ActivityThree			subscript S/X(11)
+DIM I = 50000	\ActivityFour			subscript S/X(12)
+
+\VARIABLES - DATA - Timebin Arrays
+DIM J = 10000	\Active Lever,			subscript T
+DIM K = 10000	\Inactive Lever,		subscript T
+DIM L = 10000	\Rewards,			subscript T
+DIM M = 10000	\Magazine Entries,		subscript T
+DIM N = 10000	\Total Activity,		subscript T
+DIM O = 10000	\ActivityOne,			subscript T
+DIM P = 10000	\ActivityTwo,			subscript T
+DIM Q = 10000	\ActivityThree,			subscript T
+DIM R = 10000	\ActivityFour,			subscript T
+
+\VARIABLES - CONTROL - WORKING VARIABLES
+DIM X = 12
+\X(0) = Session Clock (seconds)
+\X(1) = Decisecond Clock
+\X(2) = Timebin Clock
+\X(3) = Re-zeroing response counter
+\X(4) = Current Ratio
+\X(5) = Subscript for B
+\X(6) = Subscript for C
+\X(7) = Subscript for D
+\X(8) = Subscript for E
+\X(9) = Subscript for F
+\X(10) = Subscript for G
+\X(11) = Subscript for H
+\X(12) = Subscript for I
+
+\VARIABLES - CONTROL - SESSION PARAMETERS
+DIM Z = 7
+var_alias Session Length (min) = Z(0)
+var_alias Fixed Ratio = Z(1)
+var_alias Maximum Rewards = Z(2)
+var_alias Number of Timebins = Z(3)
+var_alias Active Lever (1L 3R) = Z(4)
+var_alias Inactive Lever (1L 3R) = Z(5)
+var_alias Reward Identity = Z(6)
+var_alias Version = Z(7)
+
+DISKVARS = A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, Z
+DISKOPTIONS = FULLHEADERS
+DISKFORMAT = 16.3
+DISKCOLUMNS = 1
+Y2KCOMPLIANT
+
+\-------------------------------------------------------------------------
+\State Set 1 - Control Program
+
+S.S.1,
+S1, 	\State 1 shows the program has loaded.
+	0.01": SET Z(7) = ^Version / 100;
+	SHOW 1, Program Version, Z(7);
+
+	\Set the variables according to the control constants
+	SET Z(0) = ^SessionLength, Z(1) = ^FixedRatio, Z(2) = ^MaximumRewards;
+	SET Z(3) = Z(0) / ^TimebinSize, Z(4) = ^ActiveLever;
+	SET Z(6) = ^RewardIdentity;
+
+	\Seal all arrays
+	SET B(1) = -987.987, C(1) = -987.987, D(1) = -987.987;		\Timestamp recorders
+	SET E(1) = -987.987, F(1) = -987.987, G(1) = -987.987;
+	SET H(1) = -987.987, I(1) = -987.987;
+	SET J(1) = -987.987, K(1) = -987.987, L(1) = -987.987;		\Timebin recorders
+	SET M(1) = -987.987, N(1) = -987.987, O(1) = -987.987;
+	SET P(1) = -987.987, Q(1) = -987.987, R(1) = -987.987;
+	SET A(25) = -987.987;						\Seal the weight element
+
+	\Set the active lever
+	IF Z(4) < 2 [@LeftActive, @RightActive]
+		@LeftActive: SET Z(4) = ^LeftLever, Z(5) = ^RightLever ---> S2
+		@RightActive: SET Z(4) = ^RightLever, Z(5) = ^LeftLever ---> S2
+
+S2,	\State 2 waits for the start command
+	#START: SHOW 1, Session Time, X(0); ON ^Houselight, ^Fan;
+
+	\Set the program start time
+	SET STARTHOURS = CURRENTHOURS;
+	SET STARTMINUTES = CURRENTMINUTES, STARTSECONDS = CURRENTSECONDS;
+
+	\Set default latencies
+	SET B(0) = Z(0) * 60, C(0) = Z(0) * 60, D(0) = Z(0) * 60;
+	SET E(0) = Z(0) * 60, F(0) = Z(0) * 60, G(0) = Z(0) * 60;
+	SET H(0) = Z(0) * 60, I(0) = Z(0) * 60 ---> S3
+
+S3,	\State 3 counts the session length in seconds
+	1": ADD X(0); SHOW 1, Session Time, X(0);
+	IF (X(0) >= Z(0) * 60) OR ((A(2) >= Z(2)) AND (Z(2) > 0)) [@SHUTDOWN, @CONTINUE]
+		@SHUTDOWN: Z^Shutdown; SET A(25) = X(0);
+		SET A(9) = B(0), A(10) = C(0), A(11) = D(0);		\Transfer latency values to the A array
+		SET A(12) = E(0), A(21) = F(0), A(22) = G(0);
+		SET A(23) = H(0), A(24) = I(0);
+		OFF ^LeftOut, ^RightOut, ^Houselight, ^Fan ---> S4
+		@CONTINUE: ---> SX
+
+S4,	\State 4 waits for 1 second and closes the program
+	1": ---> STOPABORTFLUSH
+
+\-------------------------------------------------------------------------
+\State Set 2 - Centisecond Timer
+
+S.S.2,
+S1,	\State 1 waits for the start command
+	#START:  ---> S2
+
+S2,	\State 2 counts upwards in 10 ms increments
+	0.01": SET X(1) = X(1) + 0.01;
+	SET X(2) = X(2) + 0.01; 
+	IF (X(2) / 60 >= (Z(0) / Z(3))) AND ((T + 1) < Z(3)) [@TRUE, @FALSE]
+		@TRUE: SET X(2) = 0; ADD T;
+		SET J(T) = 0, K(T) = 0, L(T) = 0, M(T) = 0;
+		SET N(T) = 0, O(T) = 0, P(T) = 0, Q(T) = 0;
+		SET R(T) = 0;
+		SET J(T+1) = -987.987, K(T+1) = -987.987;
+		SET L(T+1) = -987.987, M(T+1) = -987.987;
+		SET N(T+1) = -987.987, O(T+1) = -987.987;
+		SET P(T+1) = -987.987, Q(T+1) = -987.987;
+		SET R(T+1) = -987.987 ---> SX
+		@FALSE: ---> SX
+
+	#Z^Shutdown: ---> S3
+
+S3,	\State 3 is a holding state
+	#START: ---> SX
+
+\-------------------------------------------------------------------------
+\State Set 3 - Active Lever
+
+S.S.3,
+S1,	\State 1 waits for the start command
+	#START: SHOW 2, Active Lever, A(0); SET X(4) = Z(1);
+	SHOW 4, Rewards, A(2); ON ^LeftOut, ^RightOut ---> S2
+
+S2,	\State 2 counts active lever presses
+	#RZ(4): ADD A(0), J(T), X(3); SET S = X(5); SET B(S) = X(1);
+	ADD X(5); SET S = X(5); SET B(S) = -987.987;
+	SHOW 2, Active Lever, A(0);
+
+	\IF the counter has reached the current ratio and that ratio is greater than 0
+	\i.e. is not extinction, and either the maximum number of rewards has not been
+	\reached OR there is no maximum number of rewards, THEN deliver the reward.
+	IF ((X(3) >= X(4)) AND (X(4) > 0)) AND ((A(2) < Z(2)) OR (Z(2) <= 0)) [@REWARD, @NULL]
+		@REWARD: Z^Reward; ADD A(2), L(T);
+		SET S = X(7); SET D(S) = X(1); ADD X(7);
+		SET S = X(7); SET D(S) = -987.987;
+		SHOW 4, Rewards, A(2);
+		SET X(3) = 0 ---> S3
+		@NULL: ---> SX
+
+	#Z^Shutdown: ---> S4
+
+S3,	\State 3 counts active lever presses during the dispenser operation
+	#RZ(4): ADD A(0), A(5), J(T); SET S = X(5); SET B(S) = X(1);
+	ADD X(5); SET S = X(5); SET B(S) = -987.987;
+	SHOW 2, Active Lever, A(0) ---> SX
+
+	#Z^EndTimeout: ---> S2
+	#Z^Shutdown: ---> S4
+
+S4,	\State 4 is a holding state
+	#START: ---> SX
+
+\-------------------------------------------------------------------------
+\State Set 4 - Reward and cue delivery
+
+S.S.4,
+S1,	\State 1 waits for the start command
+	#START: ---> S2
+
+S2,	\State 2 waits for the ^Reward Z-Pulse
+	#Z^Reward: IF Z(6) = 1 [@FLUID, @PELLET]
+		@PUMP: ON ^LiquidDispenser ---> S3
+		@PELLET: ON ^Pellet ---> S3
+
+	#Z^Shutdown: ---> S4
+
+S3,	\State 3 waits to switch things off
+	0.5": IF Z(6) = 1 [@FLUID, @PELLET]
+		@PUMP: OFF ^LiquidDispenser; Z^EndTimeout ---> S2
+		@PELLET: OFF ^Pellet; Z^EndTimeout ---> S2
+
+	#Z^Shutdown: OFF ^LiquidDispenser, ^Pellet ---> S4
+
+S4,	\State 4 is a holding state
+	#START: ---> SX
+
+\-------------------------------------------------------------------------
+\State Set 5 - Inactive Lever
+
+S.S.5,
+S1,	\State 1 waits for the start command
+	#START: SHOW 3, Inactive Lever, A(1) ---> S2
+
+S2,	\State 2 counts inactive lever presses
+	#RZ(5): ADD A(1), K(T); SET S = X(6); SET C(S) = X(1); ADD X(6);
+	SET S = X(6); SET C(S) = -987.987; SHOW 3, Inactive Lever, A(1) ---> SX
+
+	#Z^Reward: ---> S3
+	#Z^Shutdown: ---> S4
+
+S3,	\State 3 counts inactive lever presses during reward delivery
+	#RZ(5): ADD A(1), A(6), K(T); SET S = X(6); SET C(S) = X(1); ADD X(6);
+	SET S = X(6); SET C(S) = -987.987; SHOW 3, Inactive Lever, A(1) ---> SX
+
+	#Z^EndTimeout: ---> S2
+	#Z^Shutdown: ---> S4
+
+S4,	\State 4 is a holding state
+	#START: ---> SX
+
+\-------------------------------------------------------------------------
+\State Set 6 - Magazine Entries
+
+S.S.6,
+S1,	\State 1 waits for the start command
+	#START: SHOW 5, Magazine Entries, A(3) ---> S2
+
+S2,	\State 2 counts magazine entries
+	#R^Magazine: ADD A(3), M(T); SET S = X(8); SET E(S) = X(1);
+	ADD X(8); SET S = X(8); SET E(S) = -987.987;
+	SHOW 5, Magazine Entries, A(3) ---> SX
+
+	#Z^Reward: ---> S3
+	#Z^Shutdown: ---> S4
+
+S3,	\State 3 counts magazine entries during reward delivery
+	#R^Magazine: ADD A(3), A(7), M(T); SET S = X(8); SET E(S) = X(1);
+	ADD X(8); SET S = X(8); SET E(S) = -987.987;
+	SHOW 5, Magazine Entries, A(3) ---> SX
+
+	#Z^EndTimeout: ---> S2
+	#Z^Shutdown: ---> S4
+
+S4,	\State 4 is a holding state
+	#START: ---> SX
+
+\-------------------------------------------------------------------------
+\State Set 7 - Locomotor Activity
+
+S.S.7,
+S1,	\State 1 waits for the start command
+	#START: SHOW 6, Locomotor Counts, A(4) ---> S2
+
+S2,	\State 2 will count any locomotor beam break
+	#R^ActivityOne: ADD A(4), A(13), N(T), O(T); SET S = X(9);
+	SET F(S) = X(1); ADD X(9); SET S = X(9); SET F(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S3
+
+	#R^ActivityTwo: ADD A(4), A(14), N(T), P(T); SET S = X(10);
+	SET G(S) = X(1); ADD X(10); SET S = X(10); SET G(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S4
+
+	#R^ActivityThree: ADD A(4), A(15), N(T), Q(T); SET S = X(11);
+	SET H(S) = X(1); ADD X(11); SET S = X(11); SET H(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S5
+
+	#R^ActivityFour: ADD A(4), A(16), N(T), R(T); SET S = X(12);
+	SET I(S) = X(1); ADD X(12); SET S = X(12); SET I(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S6
+
+	#Z^Reward: ---> S7
+	#Z^Shutdown: ---> S12
+
+S3,	\State 3 will count any locomotor beam except ^ActivityOne
+	#R^ActivityTwo: ADD A(4), A(14), N(T), P(T); SET S = X(10);
+	SET G(S) = X(1); ADD X(10); SET S = X(10); SET G(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S4
+
+	#R^ActivityThree: ADD A(4), A(15), N(T), Q(T); SET S = X(11);
+	SET H(S) = X(1); ADD X(11); SET S = X(11); SET H(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S5
+
+	#R^ActivityFour: ADD A(4), A(16), N(T), R(T); SET S = X(12);
+	SET I(S) = X(1); ADD X(12); SET S = X(12); SET I(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S6
+
+	#Z^Reward: ---> S8
+	#Z^Shutdown: ---> S12
+
+S4,	\State 4 will count any locomotor beam except ^ActivityTwo
+	#R^ActivityOne: ADD A(4), A(13), N(T), O(T); SET S = X(9);
+	SET F(S) = X(1); ADD X(9); SET S = X(9); SET F(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S3
+
+	#R^ActivityThree: ADD A(4), A(15), N(T), Q(T); SET S = X(11);
+	SET H(S) = X(1); ADD X(11); SET S = X(11); SET H(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S5
+
+	#R^ActivityFour: ADD A(4), A(16), N(T), R(T); SET S = X(12);
+	SET I(S) = X(1); ADD X(12); SET S = X(12); SET I(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S6
+
+	#Z^Reward: ---> S9
+	#Z^Shutdown: ---> S12
+
+S5,	\State 5 will count any locomotor beam except ^ActivityThree
+	#R^ActivityOne: ADD A(4), A(13), N(T), O(T); SET S = X(9);
+	SET F(S) = X(1); ADD X(9); SET S = X(9); SET F(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S3
+
+	#R^ActivityTwo: ADD A(4), A(14), N(T), P(T); SET S = X(10);
+	SET G(S) = X(1); ADD X(10); SET S = X(10); SET G(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S4
+
+	#R^ActivityFour: ADD A(4), A(16), N(T), R(T); SET S = X(12);
+	SET I(S) = X(1); ADD X(12); SET S = X(12); SET I(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S6
+
+	#Z^Reward: ---> S10
+	#Z^Shutdown: ---> S12
+
+S6,	\State 6 will count any locomotor beam except ^ActivityFour
+	#R^ActivityOne: ADD A(4), A(13), N(T), O(T); SET S = X(9);
+	SET F(S) = X(1); ADD X(9); SET S = X(9); SET F(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S3
+
+	#R^ActivityTwo: ADD A(4), A(14), N(T), P(T); SET S = X(10);
+	SET G(S) = X(1); ADD X(10); SET S = X(10); SET G(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S4
+
+	#R^ActivityThree: ADD A(4), A(15), N(T), Q(T); SET S = X(11);
+	SET H(S) = X(1); ADD X(11); SET S = X(11); SET H(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S5
+
+	#Z^Reward: ---> S11
+	#Z^Shutdown: ---> S12
+
+S7,	\State 7 will count any locomotor beam during the timeout
+	#R^ActivityOne: ADD A(4), A(13), A(19), N(T), O(T); SET S = X(9);
+	SET F(S) = X(1); ADD X(9); SET S = X(9); SET F(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S8
+
+	#R^ActivityTwo: ADD A(4), A(14), A(20), N(T), P(T); SET S = X(10);
+	SET G(S) = X(1); ADD X(10); SET S = X(10); SET G(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S9
+
+	#R^ActivityThree: ADD A(4), A(15), A(21), N(T), Q(T); SET S = X(11);
+	SET H(S) = X(1); ADD X(11); SET S = X(11); SET H(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S10
+
+	#R^ActivityFour: ADD A(4), A(16), A(22), N(T), R(T); SET S = X(12);
+	SET I(S) = X(1); ADD X(12); SET S = X(12); SET I(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S11
+
+	#Z^EndTimeout: ---> S2
+	#Z^Shutdown: ---> S12
+
+S8,	\State 8 will count any locomotor beam during the timeout except ^ActivityOne
+	#R^ActivityTwo: ADD A(4), A(14), A(20), N(T), P(T); SET S = X(10);
+	SET G(S) = X(1); ADD X(10); SET S = X(10); SET G(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S9
+
+	#R^ActivityThree: ADD A(4), A(15), A(21), N(T), Q(T); SET S = X(11);
+	SET H(S) = X(1); ADD X(11); SET S = X(11); SET H(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S10
+
+	#R^ActivityFour: ADD A(4), A(16), A(22), N(T), R(T); SET S = X(12);
+	SET I(S) = X(1); ADD X(12); SET S = X(12); SET I(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S11
+
+	#Z^EndTimeout: ---> S3
+	#Z^Shutdown: ---> S12
+
+S9,	\State 9 will count any locomotor beam during the timeout except ^ActivityTwo
+	#R^ActivityOne: ADD A(4), A(13), A(19), N(T), O(T); SET S = X(9);
+	SET F(S) = X(1); ADD X(9); SET S = X(9); SET F(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S8
+
+	#R^ActivityThree: ADD A(4), A(15), A(21), N(T), Q(T); SET S = X(11);
+	SET H(S) = X(1); ADD X(11); SET S = X(11); SET H(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S10
+
+	#R^ActivityFour: ADD A(4), A(16), A(22), N(T), R(T); SET S = X(12);
+	SET I(S) = X(1); ADD X(12); SET S = X(12); SET I(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S11
+
+	#Z^EndTimeout: ---> S4
+	#Z^Shutdown: ---> S12
+
+S10,	\State 10 will count any locomotor beam during the timeout except ^ActivityThree
+	#R^ActivityOne: ADD A(4), A(13), A(19), N(T), O(T); SET S = X(9);
+	SET F(S) = X(1); ADD X(9); SET S = X(9); SET F(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S8
+
+	#R^ActivityTwo: ADD A(4), A(14), A(20), N(T), P(T); SET S = X(10);
+	SET G(S) = X(1); ADD X(10); SET S = X(10); SET G(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S9
+
+	#R^ActivityFour: ADD A(4), A(16), A(22), N(T), R(T); SET S = X(12);
+	SET I(S) = X(1); ADD X(12); SET S = X(12); SET I(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S11
+
+	#Z^EndTimeout: ---> S5
+	#Z^Shutdown: ---> S12
+
+S11,	\State 11 will count any locomotor beam except ^ActivityFour
+	#R^ActivityOne: ADD A(4), A(13), A(19), N(T), O(T); SET S = X(9);
+	SET F(S) = X(1); ADD X(9); SET S = X(9); SET F(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S8
+
+	#R^ActivityTwo: ADD A(4), A(14), A(20), N(T), P(T); SET S = X(10);
+	SET G(S) = X(1); ADD X(10); SET S = X(10); SET G(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S9
+
+	#R^ActivityThree: ADD A(4), A(15), A(21), N(T), Q(T); SET S = X(11);
+	SET H(S) = X(1); ADD X(11); SET S = X(11); SET H(S) = -987.987;
+	SHOW 6, Locomotor Counts, A(4) ---> S10
+
+	#Z^EndTimeout: ---> S6
+	#Z^Shutdown: ---> S12
+
+S12,	\State 12 is a holding state
+	#START: ---> SX
+
+\-------------------------------------------------------------------------
+\State Set 8 - Pre-Session Screen Updater
+
+S.S.8,
+S1,	\State updates the screen before session start
+	#START: CLEAR 6,9 ---> S2
+
+	1": IF S.S.1 <= 2 [@SHOW, @SKIP]
+	@SHOW: SHOW 1, Session Length (min), Z(0);
+	SHOW 2, Maximum Rewards, Z(2);
+	SHOW 3, Number of Timebins, Z(3);
+	SHOW 4, Active Lever (1L 3R), Z(4);
+	IF Z(6) = 1 [@FLUID, @PELLET]
+		@FLUID: SHOW 5, Liquid Dispenser, Z(6) ---> SX
+		@PELLET: SHOW 5, Reward via Pellet, Z(6) ---> SX
+	@SKIP: CLEAR 6,9 ---> S2
+
+S2,	\State 2 is a holding state
+	#START: ---> SX
