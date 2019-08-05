@@ -1,6 +1,6 @@
 \-------------------------------------------------------------------------
 \ G4 PIT Test
-\ Version: 1.1
+\ Version: 1.15
 \ Created by Shaun Khoo (9 July 2019)
 \ >('.')<
 \ http://orcid.org/0000-0002-0972-3788
@@ -19,7 +19,7 @@
 ^InvertCueOrder = 0	\Whether to invert the listed cue order
 			\i.e. when a tone is listed, present clicker
 ^ActiveLever = 1	\Active lever, set to 1 for left, 10 for right
-^Version = 110		\Program version number
+^Version = 115		\Program version number
 
 \INPUTS
 ^LeftLever = 1
@@ -334,7 +334,7 @@ S5,	\State 5 times the CS+
 					@NULL: IF X(5) = Z(5) [@CSPLUS, @CSMINUS]
 						@CSPLUS: Z^PostPlusPrePlus; SET X(4) = -Z(4) ---> S11
 						@CSMINUS: Z^PostPlusPreMinus; SET X(4) = -Z(4) ---> S10
-				@POST: ---> S6
+				@POST: Z^PostCSplus ---> S6
 			@FINISHED: SET X(4) = 0 - (Z(2) * 5) ---> S6
 		@WAIT: ---> SX
 
@@ -382,7 +382,7 @@ S8,	\State 8 times the CS-
 					@NULL: IF X(5) = Z(5) [@CSPLUS, @CSMINUS]
 						@CSPLUS: Z^PostMinusPrePlus; SET X(4) = -Z(4) ---> S12
 						@CSMINUS: Z^PostMinusPreMinus; SET X(4) = -Z(4) ---> S13
-				@POST: ---> S9
+				@POST: Z^PostCSminus ---> S9
 			@FINISHED: SET X(4) = 0 - (Z(2) * 5) ---> S9
 		@WAIT: ---> SX
 
