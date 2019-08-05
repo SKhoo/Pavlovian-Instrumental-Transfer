@@ -1,6 +1,6 @@
 \-------------------------------------------------------------------------
 \ G4 PIT Test
-\ Version: 1
+\ Version: 1.1
 \ Created by Shaun Khoo (9 July 2019)
 \ >('.')<
 \ http://orcid.org/0000-0002-0972-3788
@@ -11,7 +11,7 @@
 ^SessionLength = 42	\Session length in minutes
 ^LeadInTime = 10	\Time before first cue in minutes
 ^ITI = 120		\ITI in seconds
-^Timebins = 240		\Number of timebins
+^Timebins = 252		\Number of timebins
 ^CSDuration = 120	\Cue duration in seconds
 ^CSIdentity = 1		\CS+ identity, 1 = Tone, 2 = Clicker
 ^ClickerFreq = 10	\Clicker Frequency in Hz
@@ -19,7 +19,7 @@
 ^InvertCueOrder = 0	\Whether to invert the listed cue order
 			\i.e. when a tone is listed, present clicker
 ^ActiveLever = 1	\Active lever, set to 1 for left, 10 for right
-^Version = 100		\Program version number
+^Version = 110		\Program version number
 
 \INPUTS
 ^LeftLever = 1
@@ -189,7 +189,7 @@ var_alias Trials per Cue = Z(7)
 var_alias Invert Cue Order = Z(8)
 var_alias Active Lever (1L 3R) = Z(9)
 var_alias Inactive Lever (1L 3R) = Z(10)
-var_alias Version = Z(12)
+var_alias Version = Z(11)
 
 DISKVARS = A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, U, V, Y, Z
 DISKOPTIONS = FULLHEADERS
@@ -238,8 +238,8 @@ S2,	\State 2 waits for the start command
 
 S3,	\State 3 counts the session length in seconds
 	1": ADD X(0); SHOW 1, Session Time, X(0);
-	IF (X(0) >= Z(0) * 60) OR ((A(2) >= Z(2)) AND (Z(2) > 0)) [@SHUTDOWN, @CONTINUE]
-		@SHUTDOWN: Z^Shutdown; SET A(25) = X(0);
+	IF X(0) >= Z(0) * 60 [@SHUTDOWN, @CONTINUE]
+		@SHUTDOWN: Z^Shutdown;
 		SET A(30) = C(0), A(31) = D(0), A(32) = E(0);		\Transfer latency values to the A array
 		SET A(37) = F(0), A(38) = G(0), A(39) = H(0);
 		SET A(40) = I(0);
