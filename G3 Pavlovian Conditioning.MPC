@@ -1,6 +1,6 @@
 \-------------------------------------------------------------------------
 \ G3 Pavlovian Conditioning
-\ Version: 1.1
+\ Version: 1.3
 \ Created by Shaun Khoo (22 June 2019) based on S1 Operant Self-Administration
 \ >('.')<
 \ http://orcid.org/0000-0002-0972-3788
@@ -22,7 +22,7 @@
 ^ReinforcerType = 1	\1 = reward delivered via fluid dispenser
 			\2 = reward delivered pellet dispenser
 ^ClickerFreq = 10	\Frequency of clicker in Hz
-^Version = 120		\Program version
+^Version = 130		\Program version
 
 \INPUTS
 ^LeftLever = 1
@@ -333,8 +333,12 @@ S3,	\State 3 counts upwards in 10ms (1cs) increments during the CS+
 
 	#Z^EndPostPlus: IF (X(6) - 0.001 <= Z(5)) AND (S.S.3 < 8) [@GOPRE, @NULL]
 		@GOPRE: IF X(7) = Z(4) [@PLUS, @MINUS]
-			@PLUS: ---> SX
-			@MINUS: ---> S4
+			@PLUS: SET X(3) = 0 - Z(5), X(5) = 0;
+			SET X(16) = (Z(5) * 3 * A(8)) / Z(3);
+			SET X(17) = A(8)---> SX
+			@MINUS: SET X(4) = 0 - Z(5), X(5) = 0;
+			SET X(18) = (Z(5) * 3 * A(9)) / Z(3);
+			SET X(19) = A(9) ---> S4
 		@NULL: ---> S2
 
 	#Z^PreCSplus! #Z^PostPlusPrePlus: SET X(23) = X(16), X(24) = (Z(5) * A(8) * 3) / Z(3);
@@ -365,8 +369,12 @@ S4,	\State 4 counts upwards in 10ms (1cs) increments during the CS-
 
 	#Z^EndPostMinus: IF (X(6) - 0.001 <= Z(5)) AND (S.S.3 < 8) [@GOPRE, @NULL]
 		@GOPRE: IF X(7) = Z(4) [@PLUS, @MINUS]
-			@PLUS: ---> S3
-			@MINUS: ---> SX
+			@PLUS: SET X(3) = 0 - Z(5), X(5) = 0;
+			SET X(16) = (Z(5) * 3 * A(8)) / Z(3);
+			SET X(17) = A(8) ---> S3
+			@MINUS: SET X(4) = 0 - Z(5), X(5) = 0;
+			SET X(18) = (Z(5) * 3 * A(9)) / Z(3);
+			SET X(19) = A(9) ---> SX
 		@NULL: ---> S2
 
 	#Z^PreCSplus ! #Z^PostMinusPrePlus: SET X(23) = X(18), X(24) = (Z(5) * A(9) * 3) / Z(3);
@@ -383,7 +391,7 @@ S4,	\State 4 counts upwards in 10ms (1cs) increments during the CS-
 
 S5,	\State 5 counts upwards in 10ms (1cs) increments during the Post-CS+ and Pre-CS-
 	0.01": SET X(1) = X(1) + 0.01, X(2) = X(2) + 0.01;
-	
+	SET X(3) = X(3) + 0.01;
 	SET X(4) = X(4) + 0.01, X(5) = X(5) + 0.01;
 	
 	IF ((X(2) + 0.01) / 60 >= (Z(0) / Z(2))) AND (T + 1 < Z(2)) [@SHIFT, @STAY]
@@ -407,7 +415,7 @@ S5,	\State 5 counts upwards in 10ms (1cs) increments during the Post-CS+ and Pre
 
 S6,	\State 6 counts upwards in 10ms (1cs) increments during the Post-CS- and Pre-CS+
 	0.01": SET X(1) = X(1) + 0.01, X(2) = X(2) + 0.01;
-	
+	SET X(3) = X(3) + 0.01;
 	SET X(4) = X(4) + 0.01, X(5) = X(5) + 0.01;
 	
 	IF ((X(2) + 0.01) / 60 >= (Z(0) / Z(2))) AND (T + 1 < Z(2)) [@SHIFT, @STAY]
@@ -431,7 +439,7 @@ S6,	\State 6 counts upwards in 10ms (1cs) increments during the Post-CS- and Pre
 
 S7,	\State 7 counts upwards in 10ms (1cs) increments during the Post-CS+ and Pre-CS+
 	0.01": SET X(1) = X(1) + 0.01, X(2) = X(2) + 0.01;
-	
+	SET X(3) = X(3) + 0.01;
 	SET X(4) = X(4) + 0.01, X(5) = X(5) + 0.01;
 	
 	IF ((X(2) + 0.01) / 60 >= (Z(0) / Z(2))) AND (T + 1 < Z(2)) [@SHIFT, @STAY]
@@ -455,7 +463,7 @@ S7,	\State 7 counts upwards in 10ms (1cs) increments during the Post-CS+ and Pre
 
 S8,	\State 8 counts upwards in 10ms (1cs) increments during the Post-CS- and Pre-CS-
 	0.01": SET X(1) = X(1) + 0.01, X(2) = X(2) + 0.01;
-	
+	SET X(3) = X(3) + 0.01;
 	SET X(4) = X(4) + 0.01, X(5) = X(5) + 0.01;
 	
 	IF ((X(2) + 0.01) / 60 >= (Z(0) / Z(2))) AND (T + 1 < Z(2)) [@SHIFT, @STAY]
